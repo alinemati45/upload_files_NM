@@ -1,0 +1,1849 @@
+---
+title: "Homework 5"
+author: "Ali Nemati"
+date: "Last compiled on `r format(Sys.time(), '%d %B, %Y , %H:%M:%S')`"
+output:
+  pdf_document:
+    includes: null
+    toc: yes
+    toc_depth: 4
+  word_document:
+    toc: yes
+    toc_depth: '4'
+  html_document:
+    
+    
+    toc: yes
+    toc_depth: '4'
+    df_print: paged
+# header-includes:
+header-includes:
+- \usepackage{hyperref}
+- \usepackage{xcolor}
+- \hypersetup {frenchlinks=true, colorlinks = false,  urlcolor = blue, pdfborder={0 0 1}} 
+link-citations: yes
+ident: True
+---
+
+
+\newpage
+
+# Answering question 1
+
+![](Statistic-and-Criterion.jpg)
+
+
+The dataset default.csv indicates if individuals defaulted on their credit debt.
+a. Split the dataset into a training and test set. please consider below answer.
+
+```{r}
+pacman::p_load(dplyr, tidyr ,cowplot 
+               , tidyverse , viridis , GGally) # pacman load libraries
+
+
+default <- read_csv("default.csv") # read csv file
+names(default) # we have these cols  "default" "student" "balance" "income" 
+head(default) # shows head of data
+dim(default) # rows= 10000     col= 4
+###########################################################################
+###########################################################################
+###                                                                     ###
+###                        HOW TO READ GGPARIS.                         ###
+###                                                                     ###
+###########################################################################
+###########################################################################
+# overview of our data
+# source https://www.rdocumentation.org/packages/GGally/versions/1.4.0/topics/ggpairs
+ggpairs(default, title="correlogram with ggpairs()" , colour = "income")  + 
+               theme(panel.grid.major = element_blank())
+```
+
+\newpage
+
+## part A
+### Split the data into training and test sets. 
+
+
+
+I learned what is factor and how to use it
+
+![](maxresdefault.jpg)
+
+source  : https://www.youtube.com/watch?v=xkRBfy8_2MU
+
+```{r}
+
+#  https://rdrr.io/cran/ISLR/man/Default.html 
+# A data frame with 10000 observations on the following 4 variables.
+# 
+# default -> A factor with levels No and Yes indicating whether the customer defaulted on their debt
+# 
+# student ->
+# A factor with levels No and Yes indicating whether the customer is a student
+# 
+# balance ->
+# The average balance that the customer has remaining on their 
+# credit card after making their monthly payment
+# 
+# income -> Income of customer
+# 
+
+
+
+set.seed(12345) # provided you use the same pseudo-random number generator
+tail(default$default , 10) #tail: "No" "No" "No" "No" "No" "No" "No" "No" "No" "No"
+
+
+
+
+
+##################################################################
+##             ifelse condition: YES =1, otherwise 0            ##
+##################################################################
+
+default$default <- ifelse(default$default == "Yes", 1, 0)##
+
+dim(default) #Dimensions of an Object
+
+
+
+# 
+# sum(default$default) # how many 1 do we have 333
+# dim(default)[1] - sum(default$default) # how many 0 do we have 9667
+# 
+# ## 0.8015% of the sample size
+# smp_size <- floor(0.8015 * nrow(default))
+# smp_size
+# 
+# 
+# ## set the seed to make your partition reproducible
+# train_res_ <- sample(seq_len(nrow(default)), size = smp_size)
+# tail(train_res_)
+# 
+# train <- default[train_res_, ]
+# dim(train) #  row= 8015    col = 4
+# head(train)
+# test <- default[-train_res_, ]
+# head(test)
+# 
+# dim(test) # 1985    4
+# 
+# 
+# 
+
+##################################################################
+##                    Copy code from lecture                    ##
+##################################################################
+
+############################################################################
+############################################################################
+###                                                                      ###
+###                       COMES FROM LECTURE CODE                        ###
+###                                                                      ###
+############################################################################
+############################################################################
+##  iris$subsample <- runif(nrow(iris))
+##  iris$test <- ifelse(iris$subsample < 0.90, "train", "test")
+subsample  <- runif(10000) #The Uniform Distribution
+
+default$type <- ifelse(subsample  < 0.80, "train", "test") # divided data two part, train & test
+
+###########################################################################
+###########################################################################
+###                                                                     ###
+###              WHAT IS FACTOR AND WHEN WE SHOULD USE IT               ###
+###                                                                     ###
+###########################################################################
+###########################################################################
+
+# In R, factors are used to work with categorical variables, 
+# variables that have a fixed and known set of possible values. 
+# They are also useful when you want to display character vectors 
+# in a non-alphabetical order.
+# source: https://r4ds.had.co.nz/factors.html#:~:text=In%20R%2C%20factors%20are%20used,to%20work%20with%20than%20characters.
+
+default$student <- factor(default$student) # covert to factor
+str(default$student) # display factor of default$student
+
+
+train <- default %>% filter(type == "train") %>% select(-type)
+dim(train)
+
+test <- default %>% filter(type == "test") %>% select(-type)
+dim(test)
+
+
+#################################################################
+##                       Part 1 is done!                       ##
+#################################################################
+
+
+
+```
+
+\newpage
+
+## part B
+
+b. Construct a logistic regression to predict if an individual will default 
+based on all of the provided predictors, and visualize your final predicted model.
+
+
+
+our formula is 
+
+$$default = \alpha + \beta_{1}(\operatorname{student}_{\operatorname{Yes}}) + \beta_{2}(\operatorname{balance}) + \beta_{3}(\operatorname{income})$$
+
+
+```{r}
+
+#################################################################
+##                         add UW logo                         ##
+#################################################################
+pacman::p_load(dplyr,modelr , tidyr ,cowplot ,  gapminder , tidyverse , viridis)
+
+logo_file <- system.file("extdata", "logo.png", package = "cowplot")
+
+##################################################################
+##                   Generalized linear model                   ##
+##################################################################
+
+# Source: https://stats.oarc.ucla.edu/r/dae/logit-regression/
+
+
+###################################################################################
+###################################################################################
+###                                                                             ###
+###  GENERALISED LINEAR MODELS, E.G. STATS::GLM().  LINEAR MODELS ASSUME THAT   ###
+###  THE RESPONSE IS CONTINUOUS AND THE ERROR HAS A NORMAL  DISTRIBUTION.       ###
+###  GENERALISED LINEAR MODELS EXTEND LINEAR MODELS TO INCLUDE NON-CONTINUOUS   ###
+###  RESPONSES (E.G. BINARY DATA OR COUNTS).  THEY WORK BY DEFINING A DISTANCE  ###
+###  METRIC BASED ON THE STATISTICAL IDEA OF  LIKELIHOOD. SOURCE :              ###
+###  HTTPS://R4DS.HAD.CO.NZ/MODEL-BASICS.HTML#MISSING-VALUES-5                  ###
+###                                                                             ###
+###################################################################################
+###################################################################################
+
+model_glm <- glm(default ~ ., family="binomial", data=train)
+
+
+confint(model_glm) 
+# 
+## Waiting for profiling to be done...
+##                   2.5                 % 97.5 %
+## (Intercept)    -1.226004e+01       -1.007588e+01
+## studentYes   -1.269516e+00         -2.169029e-01
+## balance         5.444101e-03       6.502409e-03
+## income        -1.088558e-05        2.498355e-05
+
+summary(model_glm)
+
+
+
+###########################################################################
+###########################################################################
+###                                                                     ###
+###  INTERPERTATION                                                     ###
+###                                                                     ###
+###########################################################################
+###########################################################################
+# 
+# It can be seen that only 2 out of the 3 predictors are significantly 
+# associated to the outcome. These include: studentYes pvalue = 0.0286 
+# and balance  < 2e-16 .
+# 
+# the z value for the studentYes variable disp is calculated 
+# as -5.812e-01 / 2.656e-01 = -2.18825301
+
+# the z value for the balance variable disp is calculated 
+# as 5.874e-03 / 2.692e-04 
+
+# The coefficient estimate of the variable  is b =  -1.125e+01 , 
+# which is Negative This means that an increase in variable is associated with 
+# increase in the probability of being negative. 
+
+
+dim(train)[1]
+names(train)
+
+# default based on all of the provided predictors, 
+#  and visualize your final predicted model.
+
+
+
+#######################################################################################
+##      tally is a convenient wrapper for summarise that will either call n or       ##
+##  sum(n) depending on whether you're tallying for the first time, or re-tallying.  ##
+##              count() is similar, but also does the group_by for you.              ##
+#######################################################################################
+
+
+
+################################################################################
+################################################################################
+###                                                                          ###
+###  TALLY IS A CONVENIENT WRAPPER FOR SUMMARISE THAT WILL EITHER CALL N OR  ###
+###  SUM(N) DEPENDING ON WHETHER YOU'RE TALLYING FOR THE FIRST TIME,  OR     ###
+###  RE-TALLYING. COUNT() IS SIMILAR, BUT ALSO DOES THE GROUP_BY FOR YOU.    ###
+###                                                                          ###
+################################################################################
+################################################################################
+data <- train %>%
+	group_by(default, student) %>%
+	tally() %>%
+	mutate(Percent = n / dim(train)[1] ) 
+# 
+# # Groups:   default [2]
+#   default student     n Percent
+#     <dbl> <chr>   <int>   <dbl>
+# 1       0 No       5129  0.684    5129/7500 ---> Remember how we did
+# 2       0 Yes      2126  0.283    2126/7500 ----> ###Important
+# 3       1 No        161  0.0215   161/7500
+# 4       1 Yes        84  0.0112   84/7500
+
+head(data)
+
+# add logofile
+uw_logo<- draw_image(logo_file, x = 1, y = 1, 
+                     hjust = 1, vjust = 1, width = 0.13, height = 0.2)
+
+
+```
+\newpage
+
+### Balanace ~ default Plot 1
+
+```{r}
+
+############################################################################
+############################################################################
+###                                                                      ###
+###                         OUR PLOT START HERE                          ###
+###                                                                      ###
+############################################################################
+############################################################################
+
+
+# Balanace ~ default
+myplot <- ggplot(train, aes(balance, default)) +
+  geom_jitter(aes(x = balance, y = default) , color = 'turquoise4') +
+  theme_minimal_grid() +
+  geom_rug(aes(color=factor(default)), sides="b") +
+  geom_smooth( method = "glm",
+              method.args = list(family = "binomial"),
+              se = FALSE,size= 2 , color="red") +
+  ggtitle("Plot 1")  +
+ theme(
+  plot.title = element_text(size = 18),
+  axis.title.x = element_text(size = 16),
+  axis.title.y = element_text(size = 16),
+  axis.text.x = element_text(
+    angle = 90,
+    vjust = 0.1,
+    hjust = 1 ,
+    size = 18 , face="bold"
+  )  , 
+  axis.text.y = element_text(
+    angle = 0,
+    vjust = 1,
+    hjust = 0.1 ,
+    size = 18  ,  face="bold"
+  ))
+
+#  add logo to my plot
+ggdraw(myplot) + 
+  draw_image(logo_file, x = 1, y = 1, hjust = 1, 
+             vjust = 1, width = 0.13, height = 0.2)
+
+
+```
+
+\newpage
+
+### Factor(default) ~ Percent (plot 2)
+
+```{r}
+
+############################################################################
+############################################################################
+###                                                                      ###
+###                         OUR PLOT START HERE                          ###
+###                                                                      ###
+############################################################################
+############################################################################
+factor(data$default)  # res : [1] 0 0 1 1
+
+# factor(default) ~ Percent
+myplot <- ggplot(data, aes(x=factor(default), fill=student, y=Percent)) +
+  geom_jitter(aes(x = factor(default), y = Percent) , color = 'turquoise4') +  
+  theme_minimal_hgrid()+ 
+# https://www.rdocumentation.org/packages/ggplot2/versions/1.0.1/topics/geom_bar
+  geom_bar(stat="identity", position="dodge") +
+  # https://ggplot2.tidyverse.org/reference/geom_text.html
+  geom_text(aes(label = Percent), size = 3 ,angle = 90,  position = 
+  position_dodge(0.9) )+   
+  facet_wrap(~default, scales = "free") + 
+  # Source: https://www.rdocumentation.org/packages/ggplot2/versions/3.3.5/topics/facet_wrap
+  xlab("default") +ylab("Percent")+ 
+  ggtitle("Plot 2")  + # plot 2
+ theme(plot.caption =  element_text(size = 18),
+  plot.tag = element_text(color = "darkred", size = 18),
+  panel.border = element_rect(color = "steelblue", size = 2),
+  plot.title = element_text(size = 18),
+  axis.title.x = element_text(size = 16),
+  axis.title.y = element_text(size = 16),
+  axis.text.x = element_text(
+    angle = 90,
+    vjust = 0.1,
+    hjust = 1 ,
+    size = 18 , face="bold"
+  )  , 
+  axis.text.y = element_text(
+    angle = 0,
+    vjust = 1,
+    hjust = 0.1 ,
+    size = 18  ,  face="bold"
+  ))
+
+#  add logo to my plot
+ggdraw(myplot) + 
+  draw_image(logo_file, x = 1, y = 1, hjust = 1, 
+             vjust = 1, width = 0.13, height = 0.2)
+
+```
+
+\newpage
+
+### Income ~ default Plot 3 
+
+```{r}
+
+############################################################################
+############################################################################
+###                                                                      ###
+###                         OUR PLOT START HERE                          ###
+###                                                                      ###
+############################################################################
+############################################################################
+
+# income ~ default
+
+myplot <- ggplot(train, aes(income, default))  +
+  geom_jitter(aes(x = income, y = default) , color = 'turquoise4') +  
+  geom_rug(aes(color=factor(default)), sides="b") +
+  geom_smooth(method = "glm",
+              method.args = list(family = "binomial"),
+              se = FALSE  ,size= 2 , color="red") +
+  theme_minimal_hgrid() +
+  ggtitle("Plot 3 ")  +
+ theme(plot.caption =  element_text(size = 18),
+  plot.tag = element_text(color = "darkred", size = 18),
+  panel.border = element_rect(color = "steelblue", size = 2),
+  plot.title = element_text(size = 18),
+  axis.title.x = element_text(size = 16),
+  axis.title.y = element_text(size = 16),
+  axis.text.x = element_text(
+    angle = 90,
+    vjust = 0.1,
+    hjust = 1 ,
+    size = 18 , face="bold"
+  )  , 
+  axis.text.y = element_text(
+    angle = 0,
+    vjust = 1,
+    hjust = 0.1 ,
+    size = 18  ,  face="bold"
+  ))
+
+#  add logo to my plot
+ggdraw(myplot) + 
+  draw_image(logo_file, x = 1, y = 1, hjust = 1,
+             vjust = 1, width = 0.13, height = 0.2)
+
+
+
+```
+
+\newpage
+
+### Student  ~ pred Plot 4
+
+### How to read box plot
+
+![](./boxplot_explanation.png)
+source : https://r-graph-gallery.com/boxplot.html
+
+
+
+```{r}
+
+
+
+## 1. R2 versus adjusted R2 for a linear model
+##    => R2 ALWAYS increases with more predictors, beware!
+## 2. What kind of prediction errors does the model make?
+##    => Linear model: calculate RMSE
+##    => Logistic regression: get predicted survival probabilities, convert
+##       to prediction, and see how accurate you were
+## 3. Backwards / forwards / stepwise regression using criteria like
+##    the AIC and BIC
+##    => AIC (Akaike Information Criterion) or BIC (Bayesian Information Criterion)
+##    => Both account for the number of parameters to protect against overfitting
+##    => AIC = 2 * (k - logLikelihood)
+##    => BIC = k * log(n) - (2 * logLikelihood)
+##    => where k = # of parameters, n = # of observations
+##    => Prefer models with lower AICs or BICs
+## 4. Likelihood ratio test (for ***nested*** models)
+## 5. k-fold cross validation
+## 6. ROC curves and AUC (for logistic regression)
+
+
+
+
+
+#-------------------------------------------------------------
+## In-class exercises:
+##
+## Write a function called logit2prob to convert log-odds to 
+## the predicted scale
+#-------------------------------------------------------------
+
+logit2prob <- function(x) {
+  return(exp(x) / (1 + exp(x)))
+}
+
+
+
+##################################################################################
+##  We’ll use modelr::add_predictions() which takes a data frame and a model.   ##
+##  It adds the predictions from the model to a new column in the data frame:   ##
+##################################################################################
+
+# Source : https://r4ds.had.co.nz/model-basics.html#missing-values-5
+
+train_res <- train %>%
+  add_predictions(model_glm) %>%
+  mutate(pred = logit2prob(pred))
+
+head(train_res)
+
+############################################################################
+############################################################################
+###                                                                      ###
+###                         OUR PLOT START HERE                          ###
+###                                                                      ###
+############################################################################
+############################################################################
+
+
+
+myplot <- ggplot(train_res, aes(x=student, y=pred  , fill=student)) +
+  geom_boxplot( width=0.5,lwd=1.5) + theme_minimal_hgrid() +
+  scale_y_continuous(trans='log') +
+  ggtitle("Plot 4")  +
+theme(   panel.border = element_rect(color = "steelblue", size = 2),
+
+  plot.title = element_text(size = 18),
+  axis.title.x = element_text(size = 16),
+  axis.title.y = element_text(size = 16),
+  axis.text.x = element_text(
+    angle = 90,
+    vjust = 0.1,
+    hjust = 1 ,
+    size = 18 , face="bold"
+  )  , 
+  axis.text.y = element_text(
+    angle = 0,
+    vjust = 1,
+    hjust = 0.1 ,
+    size = 18  ,  face="bold"
+  ))
+
+#  add logo to my plot
+ggdraw(myplot) + 
+  draw_image(logo_file, x = 1, y = 1, hjust = 1, 
+             vjust = 1, width = 0.13, height = 0.2)
+
+
+
+
+```
+
+
+
+\newpage
+
+### income  ~ pred Plot 5
+
+```{r}
+
+############################################################################
+############################################################################
+###                                                                      ###
+###                         OUR PLOT START HERE                          ###
+###                                                                      ###
+############################################################################
+############################################################################
+myplot <- ggplot(train_res, aes(x=income, y=pred)) +
+    geom_jitter(aes(x = income, y = pred) , color = 'turquoise4') +  
+  theme_minimal_grid()+geom_point(aes(color=student), alpha=0.3)  +
+  geom_smooth(method = "glm",
+              method.args = list(family = "binomial"),
+              se = FALSE  ,size= 2 , color="red") +
+  labs(y = "Predicted probability of default")+
+  ggtitle("Plot 5")  +
+  theme(plot.caption =  element_text(size = 18),
+  plot.tag = element_text(color = "darkred", size = 18),
+  panel.border = element_rect(color = "steelblue", size = 2),
+  plot.title = element_text(size = 18),
+  axis.title.x = element_text(size = 16),
+  axis.title.y = element_text(size = 16),
+  axis.text.x = element_text(
+    angle = 90,
+    vjust = 0.1,
+    hjust = 1 ,
+    size = 18 , face="bold"
+  )  , 
+  axis.text.y = element_text(
+    angle = 0,
+    vjust = 1,
+    hjust = 0.1 ,
+    size = 18  ,  face="bold"
+  ))
+
+#  add logo to my plot
+ggdraw(myplot) + 
+  draw_image(logo_file, x = 1, y = 1, hjust = 1, 
+             vjust = 1, width = 0.13, height = 0.2)
+
+
+```
+
+\newpage
+ 
+###  student  ~ balance -> boxplot Plot 6
+
+###  how to read box plot
+
+![](./boxplot_explanation.png)
+source : https://r-graph-gallery.com/boxplot.html
+
+
+```{r}
+
+############################################################################
+############################################################################
+###                                                                      ###
+###                         OUR PLOT START HERE                          ###
+###                                                                      ###
+############################################################################
+############################################################################
+
+myplot <- ggplot(train_res, aes(x=student, y=balance , fill=student)) +
+  geom_boxplot(width=0.5,lwd=1.5 ) +
+  ggtitle("Plot 6")  +
+ theme(  plot.title = element_text(size = 18),
+  # 
+  axis.title.x = element_text(size = 16), 
+  axis.title.y = element_text(size = 16),
+  axis.text.x = element_text(
+    angle = 90,
+    vjust = 0.1,
+    hjust = 1 ,
+    size = 18 , face="bold"
+  )  , 
+  axis.text.y = element_text(
+    angle = 0,
+    vjust = 1,
+    hjust = 0.1 ,
+    size = 18  ,  face="bold"
+  ) )
+#  add logo to my plot
+ggdraw(myplot) + 
+  draw_image(logo_file, x = 1, y = 1, hjust = 1,
+             vjust = 1, width = 0.13, height = 0.2)
+
+
+
+
+```
+\newpage
+
+###  Balance  ~ pred Plot 7
+
+```{r}
+############################################################################
+############################################################################
+###                                                                      ###
+###                         OUR PLOT START HERE                          ###
+###                                                                      ###
+############################################################################
+############################################################################
+myplot <- ggplot(train_res, aes(x=balance, y=pred ,color=student) ) +
+  geom_jitter(aes(x = balance, y = pred) , color = 'turquoise4') +  
+  theme_minimal_hgrid()+
+  geom_point(aes(color=student)  ) +
+  geom_line(aes(color=student)  )+
+  labs(y = "Predicted probability of default") +
+  ggtitle("Plot 7")  +
+theme(plot.caption =  element_text(size = 18),
+  plot.tag = element_text(color = "darkred", size = 18),
+  panel.border = element_rect(color = "steelblue", size = 2),
+  plot.title = element_text(size = 18),
+  axis.title.x = element_text(size = 16),
+  axis.title.y = element_text(size = 16),
+  axis.text.x = element_text(
+    angle = 90,
+    vjust = 0.1,
+    hjust = 1 ,
+    size = 18 , face="bold"
+  )  , 
+  axis.text.y = element_text(
+    angle = 0,
+    vjust = 1,
+    hjust = 0.1 ,
+    size = 18  ,  face="bold"
+  ))
+
+#  add logo to my plot
+ggdraw(myplot) + 
+  draw_image(logo_file, x = 1, y = 1, hjust = 1,
+             vjust = 1, width = 0.13, height = 0.2)
+
+
+
+
+
+
+
+############################################################################
+############################################################################
+###                                                                      ###
+###                         Interpertation                               ###
+###                                                                      ###
+############################################################################
+############################################################################
+
+# Note that the change in probabilities is not constant -
+# the curve rises after 1000 , then more quickly in the middle, then levels out at 
+# the end. 
+# The difference in probabilities between 0 and 1000 is far less than the 
+# difference in probabilities between 1000 and 2000 or after 2000. 
+
+```
+
+
+\newpage
+
+
+
+## PArt C
+
+c. Interpret all coefficients, indicating the significance of the coefficients and what it means
+```{r}
+summary(model_glm)
+```
+
+
+
+
+
+
+
+![](multiple-linear-regression-formula.png)
+
+y = the predicted value of the dependent variable
+
+B0 = the y-intercept (value of y when all other parameters are set to 0)
+
+B1X1= the regression coefficient (B1) of the first independent variable (X1) 
+(a.k.a. the effect that increasing the value of the independent variable has on the predicted y value)
+
+… = do the same for however many independent variables you are testing
+
+BnXn = the regression coefficient of the last independent variable
+
+e = model error (a.k.a. how much variation there is in our estimate of y)
+
+Source : https://gzipwtf.com/how-do-we-calculate-the-coefficient-of-determination/
+
+
+
+our formual.
+
+**credit debt= -5.813e-01(studentYes)+ 5.874e-03(balance) + 7.023e-06(income)+   -1.125e+01  + e** 
+
+
+
+As we can see above result, we have intercept  -1.125e+01 . only p-value compare to all response variables are very height for income which is 0.4425.
+
+**overall based on the p-value, income does not have insignificant.**
+
+all over variable are much better, like p-value(studentYes) =0.0286 with the the log odds  of -5.813e-01 ,
+
+
+**a one unit increase in the predictor variable studentYes is associated with an average change of -5.813e-01**
+**in the log odds of the response variable am taking on a value of $1. This means that higher**
+**values of studentYes are associated with a lower likelihood of the am variable taking on a value of $1.**
+
+in addition, for balance , we have p-value(balance) <2e-16 and  the log odds is 5.874e-03 . 
+
+The log-odds function of probabilities is often used 
+in state estimation algorithms because of its numerical advantages in the case of small probabilities.
+ 
+as we can see the formula,  students will decreasing(negative) with -5.813e-01, in other hand other variables are increasing(positive) by 1 dollar. 
+ 
+It can be seen that only 2 out of the 3 predictors are significantly
+associated to the outcome. These include: studentYes p-value = 0.0286 and balance < 2e-16 .
+
+ the z value for the studentYes variable credit debt is calculated
+ 
+ as -5.812e-01 / 2.656e-01 = -2.18825301
+ 
+ the z value for the balance variable credit debt is calculated
+ 
+ as 5.874e-03 / 2.692e-04
+
+ The coefficient estimate of the variable is b = -1.125e+01 ,  
+ which is Negative This means that an increase in variable is associated with  
+ increase in the probability of being negative.
+ 
+It can be seen that, changing in studentYes and balance   are significantly associated to changes
+in credit debt while changes in income budget is not significantly associated with credit debt.
+
+
+we can also see, based on boxplot Plot 4, people with no credits do not like to be 
+as default compare to student with credit. as a result, we will see student would like to not spend money
+because of being higher remaing balance in the  plot 6. 
+
+
+\newpage 
+
+## PArt D
+
+d. Calculate the error rate of the model. Do you think this is a good model? Estimate a second logistic
+regression model using only income as a predictor and compare its error rate to the full model.
+
+
+\newpage
+
+
+
+### Model 1
+```{r}
+
+train <- train_res %>%
+    mutate(pred_default = ifelse(pred < 0.5, 0, 1))
+head(train)
+
+test <- test %>%
+    add_predictions(model_glm) %>%
+    mutate(pred = logit2prob(pred)) %>%
+    mutate(pred_default = ifelse(pred < 0.5, 0, 1))
+head(test)
+
+print("Our test error for model 1")
+
+mean(test$pred_default != test$default)
+
+print("Our train error for model 1")
+mean(train$pred_default != train$default)
+
+
+```
+\newpage
+
+### Model 2 
+
+second logistic regression model using only income as a predictor and compare its error rate to the full model
+
+```{r}
+
+model2 <- glm(default ~ income, family="binomial", data=train_res)
+
+
+
+summary(model2)
+
+
+
+train <- train %>% add_predictions(model2) %>%
+                mutate(pred = logit2prob(pred)) %>%
+                mutate(pred_default = ifelse(pred < 0.5, 0, 1))
+head(train)
+
+
+test <- test %>% add_predictions(model2) %>%
+    mutate(pred = logit2prob(pred)) %>%
+    mutate(pred_default = ifelse(pred < 0.5, 0, 1))
+
+head(test)
+
+
+print("Our test error for model 2")
+
+
+mean(test$pred_default != test$default)
+print("Our train error for model 2")
+
+mean(train$pred_default != train_res$default)
+
+```
+
+
+## Training error vs test error
+In machine learning, there are two important concepts: the training error and the test error.
+
+
+
+
+Training Error: We get the by calculating the classification error of a model on the same data the
+model was trained on (just like the example above).
+Test Error: We get this by using two completely disjoint datasets: one to train the model and 
+the other to calculate the classification error. Both datasets need to have values for y. 
+The first dataset is called training data 
+and the second, test data.
+
+You get training error when you run the trained model against the training data. It is important to 
+remember that this data 
+was already used to train the model and this does not imply that the model will be accurate when 
+applied to the training data  again.
+
+
+Source : https://rapidminer.com/blog/validate-models-training-test-error/
+
+
+
+in our test error result with  0.02871537 for all data prediction which is great. 
+
+
+**1985 *  0.02871537 = 57.0000095 ~ 57 error occurs in the test model 1.**
+
+
+to compare with second model that  I run, which we have  0.02632564. 
+
+
+**1985 * 0.0372796 = 74.000006 ~ 74 mistake occurs in the test model 2.**
+
+
+Also, error rate for training model 1 is  0.026875. 
+
+
+**8015 *  0.02632564 = 211.000005 error found in training MODEL 1 .**
+
+training error rate for second model is  0.032625.
+
+**8015 * 0.03231441= 258.999996 ~259 error found in training MODEL 2.**
+
+All in all, we have less error for model 1 and less error for training for model one. 
+
+**so, model 1 is WINNER.**
+
+
+
+
+
+\newpage
+
+# ANswerting question 2
+## Part A
+
+```{r}
+options(warn=-1) # remove warning with -1, show waring with 0
+
+pacman::p_load(dplyr, tidyr ,cowplot 
+               , tidyverse , viridis , GGally)
+
+
+data <- read_csv("evals-mod.csv")
+names(data) # we have these cols  "default" "student" "balance" "income" 
+head(data) # shows head of data
+dim(data) # rows= 10000     col= 4
+
+# overview of our data
+options(warn=-1) # remove warning with -1, show waring with 0
+
+ggpairs(data, title="correlogram with ggpairs()" , colour = "gender")  + 
+               theme(panel.grid.major = element_blank())
+```
+
+
+### Split the data into training and test sets. 
+
+
+I learned what is factor and how to use it
+
+![](./maxresdefault.jpg)
+
+source  : https://www.youtube.com/watch?v=xkRBfy8_2MU
+
+```{r}
+
+
+pacman::p_load(dplyr, tidyr ,cowplot 
+               , tidyverse , viridis , GGally)
+
+set.seed(12345) # provided you use the same pseudo-random number generator
+
+
+
+data <- read_csv("evals-mod.csv")
+names(data)
+library(broom)
+
+# we will build the best possible model predicting
+# the average teacher evaluation score using some combination of rank, ethnicity, gender, language,
+# age, cls_perc_eval, cls_did_eval, cls_students, cls_level, cls_profs, cls_credits, bty_avg
+
+data$bty_average <- select(data, starts_with("bty_")) %>% rowMeans()
+data <- data %>% select(-ends_with("lower"), -ends_with("upper"))
+
+names(data)
+#--------------------------------------------------------
+##  Split the data into training and test sets. 
+# Extract code from Lecture
+## set.seed(1234)
+## iris$subsample <- runif(nrow(iris))
+## iris$test <- ifelse(iris$subsample < 0.90, "train", "test")
+## iris_train <- filter(iris, test == "train")
+##  iris_test <- filter(iris, test == "test")
+
+
+
+set.seed(12345)
+subsample <- runif(nrow(data))
+data$type <- ifelse(subsample < 0.80, "train", "test")
+train <- data %>% filter(type == "train") %>%select(-type)
+test <- data %>% filter(type == "test") %>% select(-type)
+dim(train)
+names(data)
+options(warn=-1) # remove warning with -1, show waring with 0
+
+ggplot(data) + geom_histogram(aes(x=score , bins=30) )
+
+#################################################################
+##                       Part 1 is done!                       ##
+#################################################################
+
+
+
+names(train)
+
+
+```
+\newpage
+
+
+
+
+
+
+## part B
+
+
+As long as the variable has very low R^2 adjusted and large p-value, we can expect to be
+the worst predictor of evaluation scores.
+
+as you can see , we have cls_profs with  R^2 adjusted is   -0.002290736 and p-value 0.672, 
+so, we can defiantly say cls_profs is the worst predictor of evaluation scores.
+
+
+### Extract summary using fuction
+```{r}
+
+varlist <- names(train)[2:13]
+varlist
+
+
+models <- sapply(varlist, function(x) {
+    lm(substitute(score ~ i, list(i = as.name(x))), data = train) 
+
+})
+
+## look at the first element of the list, model 1
+## models
+
+## apply summary to each model stored in the list, models
+
+###################################################################################
+###################################################################################
+###                                                                             ###
+###  SAPPLY() FUNCTION IN R LANGUAGE TAKES LIST, VECTOR OR DATA FRAME AS INPUT  ###
+###  AND GIVES OUTPUT IN VECTOR OR MATRIX. IT IS USEFUL FOR OPERATIONS ON LIST  ###
+###  OBJECTS AND RETURNS A LIST OBJECT OF SAME LENGTH OF ORIGINAL SET.          ###
+###                                                                             ###
+###################################################################################
+###################################################################################
+
+sapply(models , summary)
+
+
+# par(mfrow = c(2, 2))
+# invisible(lapply(models, plot))
+
+
+
+#models <- lapply(varlist, function(x) {
+#    lm(substitute(score ~ i, list(i = as.name(x))), data = train) 
+
+#})
+#lapply(models , summary)
+
+# par(mfrow = c(2, 2))
+# invisible(lapply(models, plot))
+
+
+```
+
+### Extract summary using Tab_model
+
+```{r}
+# rank
+#model_rank <- lm(score ~ rank, data = train) summary(model_rank)$coefficients[2,"Pr(>|t|)"]
+#summary(model_rank)$r.squaredmodel_rank <- lm(score ~ rank, data = train) summary(model_rank)$coefficients[2,"Pr(>|t|)"]
+#summary(model_rank)$r.squared
+
+
+#ethnicity
+#model_ethnicity <- lm(score ~ ethnicity, data = train) 
+# summary(model_ethnicity)
+#summary(model_ethnicity)$coefficients[2,"Pr(>|t|)"] 
+#summary(model_ethnicity)$r.squared
+
+# gender
+#model_gender <- lm(score ~ gender, data = train) 
+# summary(model_gender)
+#summary(model_ethnicity)$coefficients[2,"Pr(>|t|)"] 
+#summary(model_ethnicity)$r.squared
+
+# language
+#model_language <- lm(score ~ language, data = train) 
+# summary(model_language)
+#summary(model_language)$coefficients[2,"Pr(>|t|)"] 
+#summary(model_language)$r.squared
+# age
+
+#model_age <- lm(score ~ age, data = train) 
+# summary(model_age)
+#summary(model_age)$coefficients[2,"Pr(>|t|)"] 
+#summary(model_age)$r.squared
+# cls_perc_eval
+
+#model_cls_perc_eval <- lm(score ~ cls_perc_eval, data = train) 
+# summary(model_cls_perc_eval)
+#summary(model_cls_perc_eval)$coefficients[2,"Pr(>|t|)"] 
+#summary(model_cls_perc_eval)$r.squared
+
+
+# cls_did_eval
+#model_cls_did_eval <- lm(score ~ cls_did_eval, data = train) 
+# summary(model_cls_did_eval)
+#summary(model_cls_did_eval)$coefficients[2,"Pr(>|t|)"] 
+#summary(model_cls_did_eval)$r.squared
+
+#cls_students
+#model_cls_students <- lm(score ~ cls_students, data = train) 
+# summary(model_cls_students)
+#summary(model_cls_students)$coefficients[2,"Pr(>|t|)"] 
+#summary(model_cls_students)$r.squared
+
+
+# cls_level
+#model_cls_level <- lm(score ~ cls_level, data = train)
+# summary(model_cls_level)
+#summary(model_cls_level)$coefficients[2,"Pr(>|t|)"] 
+#summary(model_cls_level)$r.squared
+# cls_profs
+model_cls_profs <- lm(score ~ cls_profs, data = train) 
+# summary(model_cls_profs)
+summary(model_cls_profs)$coefficients[2,"Pr(>|t|)"] 
+summary(model_cls_profs)$r.squared
+
+# cls_credits
+#model_cls_credits <- lm(score ~ cls_credits, data = train) # male as the reference
+# summary(model_cls_credits)
+#summary(model_cls_credits)$coefficients[2,"Pr(>|t|)"] 
+#summary(model_cls_credits)$r.squared
+
+# bty_average
+#model_bty_average <- lm(score ~ bty_average, data = train) # male as the reference
+# summary(model_bty_average)
+#summary(model_bty_average)$coefficients[2,"Pr(>|t|)"] 
+#summary(model_bty_average)$r.squared
+
+
+
+# names(train)
+
+ 
+# Make a regression table https://www.rdocumentation.org/packages/sjPlot/versions/2.8.10/topics/tab_model
+
+# Make a regression table https://www.rdocumentation.org/packages/sjPlot/versions/2.8.10/topics/tab_model
+# tab<- tab_model(model_rank , model_ethnicity , model_gender , model_language , model_age,
+# model_cls_perc_eval , model_cls_did_eval , model_cls_students,
+# model_cls_level , model_cls_profs , model_cls_credits, model_bty_average,  digits = 5,
+          
+#          dv.labels = c("model_rank","model_ethnicity" , "model_gender" , "model_language" , "model_age",
+# "model_cls_perc_eval" , "model_cls_did_eval" , "model_cls_students",
+# "model_cls_level" , "model_cls_profs" , "model_cls_credits", "model_bty_average"),
+#         title = "evals-mod", show.p=T, 
+#          show.se = T, show.ci = T, collapse.se = T, p.style = "stars" , 
+#            show.aic = T,
+#                 show.fstat = T,
+#                 show.r2 = T ,  file="output.html")
+
+
+#tab$page.complete <- gsub("adjusted","adjusted or conditional",
+#                          tab$page.complete)
+#tab
+
+
+```
+
+
+
+
+\newpage
+
+## part C
+
+
+
+```{r}
+library(GGally)
+ggpairs(train)
+
+```
+
+
+OUR RESULT SHOWS THAT WE HAVE 7 TERMS AS VARIBALES INCULDES:
+
+cls_credits ,  bty_average , gender , cls_perc_eval, ethnicity, language, age.
+Based on question that asked, we can ignore cls_did_eval because i can see both have same 
+measures cls_perc_eval also, we can see there are higher correlation wtih cls_student.
+
+
+
+
+
+cls_did_eval 0.0008015  0.0006239   1.285      0.2    
+
+cls_perc_eval 0.006263   0.001654   3.788 0.000178 ***
+
+
+
+
+
+
+
+
+## Part D
+
+d. Using one of the model selection techniques discussed in class, determine the best model.
+Write out the linear model for predicting score based on the final model you settle on,
+and interpret the slopes of one numerical and one categorical predictor based on your
+final model.
+
+
+
+I will try to use stepwise regression by AIC.
+reason:
+
+1. It is easy to apply
+
+2. It improves model generalizability
+
+3. It yields a simple model that is easy to interpret
+
+4. It is objective and reproducible
+
+
+
+
+our final model is here
+
+
+
+                        Estimate Std. Error t value Pr(>|t|)    
+                        
+(Intercept)            3.413737   0.228366  14.949  < 2e-16 
+
+ethnicitynot minority  0.198474   0.085403   2.324 0.020696  
+
+gendermale             0.201301   0.057043   3.529 0.000473 
+
+languagenon-english   -0.220350   0.120603  -1.827 0.068537 .  
+
+age                   -0.004885   0.002943  -1.660 0.097816 .  
+
+cls_perc_eval          0.005436   0.001609   3.378 0.000810
+
+cls_creditsone credit  0.491295   0.120843   4.066 5.91e-05
+
+bty_average            0.062328   0.018374   3.392 0.000772
+
+
+Our Model= 3.41 + 0.198474 * [ethnicity not minority] + 0.201301 * [gendermale] +  -0.220350* [languagenon-english]  -0.004885 * [age] + 0.005436 * [cls_perc_eval] + 0.491295 * [cls_creditsone credit]  +  0.062328   * [bty_average] + 3.413737
+
+![](multiple-linear-regression-formula.png)
+
+
+y = the predicted value of the dependent variable
+
+B0 = the y-intercept (value of y when all other parameters are set to 0)
+
+B1X1= the regression coefficient (B1) of the first independent variable (X1) 
+(a.k.a. the effect that increasing the value of the independent variable has on the predicted y value)
+
+… = do the same for however many independent variables you are testing
+
+BnXn = the regression coefficient of the last independent variable
+
+e = model error (a.k.a. how much variation there is in our estimate of y)
+
+```{r}
+############################################################################
+###                                                                      ###
+###                           INTERPERTATION.                            ###
+###                                                                      ###
+############################################################################
+############################################################################
+
+```
+
+
+as long as age is -0.004885, if we have one year age increase, we will see decreasing in beauty by  -0.004885.
+remember p-value is 0.097816 for age too.on  the other hand, we have gendermale with  0.201301 and p-value 0.000473 . means male is 0.201301 score is higher then women too.
+
+### Stepwise regression
+```{r}
+############################################################################
+############################################################################
+###                                                                      ###
+###                      Stepwise Regression.                            ###
+###                                                                      ###
+############################################################################
+############################################################################
+library(olsrr)
+
+##################################################################################
+##################################################################################
+###                                                                            ###
+###   BUILD REGRESSION MODEL FROM A SET OF CANDIDATE PREDICTOR VARIABLES  BY   ###
+###  ENTERING AND REMOVING PREDICTORS BASED ON P VALUES, IN A STEPWISE MANNER  ###
+###   UNTIL THERE IS NO VARIABLE LEFT TO ENTER OR REMOVE ANY MORE. THE MODEL   ###
+###  SHOULD INCLUDE ALL THE CANDIDATE PREDICTOR VARIABLES.  IF DETAILS IS SET  ###
+###                      TO TRUE, EACH STEP IS DISPLAYED..                     ###
+###                                                                            ###
+##################################################################################
+##################################################################################
+
+# https://www.rdocumentation.org/packages/olsrr/versions/0.5.3/topics/ols_step_both_p
+model_ols_step_both_p <- lm(score ~ ., data = train)
+
+ols_step_both_p(model_ols_step_both_p)
+
+
+
+
+
+#k <- ols_step_both_p(model_ols_step_both_p)
+###########################################################################################
+##  The plot method shows the panel of fit criteria for Stepwise Regression    methods.  ##
+###########################################################################################
+#plot(k)
+```
+
+
+
+\newpage
+### DETAILED OUTPUT
+```{r}
+############################################################################
+############################################################################
+###                                                                      ###
+###                           DETAILED OUTPUT                            ###
+###                                                                      ###
+############################################################################
+############################################################################
+# ols_step_both_p(model_ols_step_both_p, details = TRUE)
+```
+\newpage
+
+
+## Part E
+
+our final model is 
+
+Our Model= 3.41 + 0.198474 * [ethnicity not minority] + 0.201301 * [gendermale] +  
+-0.220350* [languagenon-english]  -0.004885 * [age] + 0.005436 * [cls_perc_eval] + 
+0.491295 * [cls_creditsone credit]  +  0.062328   * [bty_average] + 3.413737
+
+
+for our final model we should consider the all below variables characteristics of a professor and course that
+would be associated with a high evaluation score:
+
+
+1. Gender (Gender of professor (collected as a binary variable at the time of the study): female,
+male. )the professor  should be male because gendermale is 0.201 not female.
+
+2. cls_creditsone credit -> singel credit not multiple
+
+3. ethnicity (Ethnicity of professor: not minority, minority.) -> not minority
+
+4. language (Language of school where professor received education: English or non-English.)-> english
+
+5. age (Age of professor) 29 or 31 years old
+
+6. bty_average(Average beauty rating of professor.)  ->  great
+
+\newpage
+
+# ANswerting question 3
+
+***we are going to apply, Stepwise Forward Regression , Stepwise Backward Regression and*** 
+***Stepwise Regression. Than, apply RMSE and ACC and BIC & AIC. we will compare to know***
+***preform of these there selection models.***
+
+## Stepwise Regression
+ and
+
+PLEASE REFER TO PART C QUESTION 2.
+
+\newpage
+
+## Stepwise Forward Regression
+
+```{r}
+###########################################################################
+###########################################################################
+###                                                                     ###
+###                    STEPWISE FORWARD REGRESSION.                     ###
+###                                                                     ###
+###########################################################################
+###########################################################################
+
+# stepwise forward regression
+model_ols_step_forward_p <- lm(score ~ ., data = train)
+
+
+
+
+
+##################################################################################
+##################################################################################
+###                                                                            ###
+###   BUILD REGRESSION MODEL FROM A SET OF CANDIDATE PREDICTOR  VARIABLES BY   ###
+###  ENTERING PREDICTORS BASED ON P VALUES, IN A  STEPWISE MANNER UNTIL THERE  ###
+###  IS NO VARIABLE LEFT TO ENTER ANY MORE.  THE MODEL SHOULD INCLUDE ALL THE  ###
+###  CANDIDATE PREDICTOR VARIABLES.  IF DETAILS IS SET TO TRUE, EACH STEP IS   ###
+###                                 DISPLAYED.                                 ###
+###                                                                            ###
+##################################################################################
+##################################################################################
+ols_step_forward_p(model_ols_step_forward_p)
+#k <- ols_step_forward_p(model_ols_step_forward_p)
+#plot(k)
+```
+
+
+
+
+
+\newpage
+### DETAILED OUTPUT
+
+```{r}
+############################################################################
+############################################################################
+###                                                                      ###
+###                           DETAILED OUTPUT                            ###
+###                                                                      ###
+############################################################################
+############################################################################
+# ols_step_forward_p(model_ols_step_forward_p, details = TRUE)
+```
+
+
+\newpage
+## Stepwise Backward Regression
+```{r}
+############################################################################
+############################################################################
+###                                                                      ###
+###                    STEPWISE BACKWARD REGRESSION.                     ###
+###                                                                      ###
+############################################################################
+############################################################################
+# stepwise forward regression
+model_ols_step_backward_p <- lm(score ~ ., data = train)
+
+###################################################################################
+###################################################################################
+###                                                                             ###
+###    BUILD REGRESSION MODEL FROM A SET OF CANDIDATE PREDICTOR VARIABLES BY    ###
+###  REMOVING PREDICTORS BASED ON P VALUES, IN A STEPWISE MANNER UNTIL  THERE   ###
+###  IS NO VARIABLE LEFT TO REMOVE ANY MORE. THE MODEL SHOULD INCLUDE  ALL THE  ###
+###    CANDIDATE PREDICTOR VARIABLES. IF DETAILS IS SET TO TRUE, EACH STEP IS   ###
+###                                  DISPLAYED.                                 ###
+###                                                                             ###
+###################################################################################
+###################################################################################
+
+ols_step_backward_p(model_ols_step_backward_p)
+# k <- ols_step_backward_p(model_ols_step_backward_p)
+#plot(k)
+```
+
+\newpage
+### DETAILED OUTPUT
+```{r}
+############################################################################
+############################################################################
+###                                                                      ###
+###                           DETAILED OUTPUT                            ###
+###                                                                      ###
+############################################################################
+############################################################################
+# ols_step_backward_p(model_ols_step_backward_p, details = TRUE)
+```
+
+
+## Perform 
+
+***we are going to apply, Stepwise Forward Regression , Stepwise Backward Regression and*** 
+***Stepwise Regression. Than, apply RMSE and ACC and BIC & AIC. we will compare to know***
+***preform of these there selection models.***
+
+
+1. Both-Direction Stepwise Selection
+
+2. STEPWISE BACKWARD REGRESSION
+
+3. STEPWISE FORWARD REGRESSION
+
+Source: https://www.statology.org/stepwise-regression-r/
+
+
+***Lower AIC much better***
+Should you use forward or backward stepwise selection?
+
+- Where forward stepwise is better
+
+
+only consider models with number of variables less than the sample size
+(for linear regression)
+ 
+ 
+source https://www.jmlr.org/papers/volume20/17-334/17-334.pdf
+
+Unless the number of candidate variables > sample size (or number of events), 
+use a backward stepwise approach.
+
+
+- Where backward stepwise is better
+```{r}
+
+#=============================================================
+## Model selection / comparing models
+#=============================================================
+
+##  So how do you know if a model is good or bad? How do you choose
+##   the best predictors? How can we build models as robustly as possible?
+
+## Model validation strategy:
+# -- Randomly	divide	data	into: 
+#   (1) Training data (~60-80%)
+#   (2) Test data (remainder)
+# -- Build model with training data
+# -- Fit model to test data and evaluate performance
+# * Categorical data: accuracy, PPV, TPR, FNR, AUC, ...
+# * Numeric response: RMSE = sqrt(1/n * sum((pred - obs)^2))
+# root-mean-square deviation
+# RMSD is always non-negative, and a value of 0 
+# (almost never achieved in practice) would indicate 
+# a perfect fit to the data. In general, a lower RMSD 
+# is better than a higher one. However, comparisons across 
+# different types of data would be invalid because the 
+# measure is dependent on the scale of the numbers used.
+
+
+
+## 1. R2 versus adjusted R2 for a linear model
+##    => R2 ALWAYS increases with more predictors, beware!
+## 2. What kind of prediction errors does the model make?
+##    => Linear model: calculate RMSE
+##    => Logistic regression: get predicted survival probabilities, convert
+##       to prediction, and see how accurate you were
+## 3. Backwards / forwards / stepwise regression using criteria like
+##    the AIC and BIC
+##    => AIC (Akaike Information Criterion) or BIC (Bayesian Information Criterion)
+##    => Both account for the number of parameters to protect against overfitting
+##    => AIC = 2 * (k - logLikelihood)
+##    => BIC = k * log(n) - (2 * logLikelihood)
+##    => where k = # of parameters, n = # of observations
+##    => Prefer models with lower AICs or BICs
+## 4. Likelihood ratio test (for ***nested*** models)
+## 5. k-fold cross validation
+## 6. ROC curves and AUC (for logistic regression)
+
+
+#-------------------------------------------------------------
+## In-class exercises:
+##
+## a) Which of the above iris models is preferred by R2 and adjusted R2?
+##
+## b) Get predicted Sepal.Length for model1 and model3, and calculate RMSE
+## c) Get predicted survival probabilities for model with age alone and
+##       model with age * sex, convert to a prediction,
+##       and see what percentage of predictions were accurate.
+##
+## d) Perform backwards/forwards/stepwise regression 
+## e) Perform a likelihood ratio test for model3 and model1 above
+## f) Perform 10-fold cross validation to evaluate the best iris model.
+#-------------------------------------------------------------
+
+```
+
+
+\newpage
+
+## CHACK MODEL BASED ON RMSE
+
+$$RMSE = \sqrt\frac{\sum_{i=1}^{n}   \left(y_{i} - \hat{y}\right)^{2}}   {n}$$
+
+Root Mean Square Error (RMSE) is the standard deviation of the residuals (prediction errors). 
+Residuals are a measure of how far from the regression line data points are;
+RMSE is a measure of how spread out these residuals are. In other words,
+it tells you how concentrated the data is around the line of best fit.
+Root mean square error is commonly used in climatology, forecasting, and regression analysis to
+verify experimental results.
+
+source https://www.statisticshowto.com/probability-and-statistics/regression-analysis/rmse-root-mean-square-error/
+
+```{r}
+
+# model_ols_step_both_p
+model_ols_step_both_p <- lm(score ~ cls_credits + bty_average +gender+ cls_perc_eval+ethnicity+
+                                  language+ age
+                                , data = train)
+#################################################################
+##     to predict the values based on the input test data.     ##
+#################################################################
+
+pred_model_ols_step_both_p <- predict(model_ols_step_both_p, test)
+# 
+# actuals_preds <- data.frame(cbind(actuals=test$score, predicteds=pred_model_ols_step_both_p)) 
+# # make actuals_predicteds dataframe. 
+
+##############################################################################
+##  considers the average between the minimum and the maximum prediction..  ##
+##############################################################################
+# 
+# # Min-Max Accuracy Calculation
+# min_max_accuracy_model_ols_step_both_p <- mean(apply(actuals_preds, 1, min) /
+#                                                  apply(actuals_preds, 1, max))  
+
+#################################################################
+##           RMSE = sqrt(1/n * sum((pred - obs)^2)).           ##
+#################################################################
+
+rmse_model_ols_step_both_p  <- sqrt(1/length(pred_model_ols_step_both_p) *
+                                      sum((test$score- pred_model_ols_step_both_p)^2))
+rmse_model_ols_step_both_p
+
+
+# model_ols_step_forward_p
+model_ols_step_forward_p <- lm(score ~ cls_credits + bty_average +gender+ cls_perc_eval+ethnicity+
+                                  language+ age+ cls_did_eval
+                                , data = train)
+#################################################################
+##     to predict the values based on the input test data.     ##
+#################################################################
+
+pred_model_ols_step_forward_p <- predict(model_ols_step_forward_p, test)
+# 
+# actuals_preds <- data.frame(cbind(actuals=test$score, predicteds=pred_model_ols_step_forward_p)) 
+# make actuals_predicteds dataframe. 
+
+# Min-Max Accuracy Calculation
+
+##############################################################################
+##  considers the average between the minimum and the maximum prediction..  ##
+##############################################################################
+
+# min_max_accuracy_model_ols_step_forward_p<- mean(apply(actuals_preds, 1, min) / 
+#                                                    apply(actuals_preds, 1, max))  
+# 
+
+#################################################################
+##           RMSE = sqrt(1/n * sum((pred - obs)^2)).           ##
+#################################################################
+
+rmse_model_ols_step_forward_p <- sqrt(1/length(pred_model_ols_step_forward_p)
+                                      * sum((test$score- pred_model_ols_step_forward_p)^2))
+rmse_model_ols_step_forward_p
+
+# model_ols_step_backward_p
+model_ols_step_backward_p <- lm(score ~ cls_profs + cls_level + cls_students +rank              
+                                , data = train)
+#################################################################
+##     to predict the values based on the input test data.     ##
+#################################################################
+
+pred_model_ols_step_backward_p <- predict(model_ols_step_backward_p, test)  # prediction
+# 
+# actuals_preds <- data.frame(cbind(actuals=test$score, predicteds=pred_model_ols_step_backward_p))
+# # make actuals_predicteds dataframe. 
+# 
+# 
+# # Min-Max Accuracy Calculation
+# 
+# ##############################################################################
+# ##  considers the average between the minimum and the maximum prediction..  ##
+# ##############################################################################
+# 
+# min_max_accuracy_model_ols_step_backward_p<- mean(apply(actuals_preds, 1, min) / 
+#                                                     apply(actuals_preds, 1, max))  
+
+#################################################################
+##           RMSE = sqrt(1/n * sum((pred - obs)^2)).           ##
+#################################################################
+
+rmse_model_ols_step_backward_p <- sqrt(1/length(pred_model_ols_step_backward_p) 
+                                       * sum((test$score- pred_model_ols_step_backward_p)^2))
+rmse_model_ols_step_backward_p
+
+
+
+## Min-Max Accuracy Calculation
+# 
+# soruce https://www.machinelearningplus.com/machine-learning/complete-introduction-linear-regression-r/
+# 
+# min_max_accuracy_model_ols_step_both_p = 0.91
+# 
+# min_max_accuracy_model_ols_step_forward_p =0.91
+# 
+# min_max_accuracy_model_ols_step_backward_p = 0.89
+# 
+
+
+```
+
+
+
+rmse_model_ols_step_both_p is 0.5033855 is WINNER
+
+rmse_model_ols_step_forward_p is 0.5039931 
+
+rmse_model_ols_step_backward_p is 0.5450921
+
+
+## Compare with ANOVE
+
+Source https://r-statistics.co/Model-Selection-in-R.html
+https://bookdown.org/ndphillips/YaRrr/comparing-regression-models-with-anova.html
+Comparing Models Using ANOVA
+If you have two or more models that are subsets of a larger model, you can use anova() to 
+check if the additional variable(s) contribute to the predictive ability of the model. 
+
+```{r}
+anova(model_ols_step_both_p, model_ols_step_forward_p, model_ols_step_backward_p)
+
+
+```
+
+For each row in the output, the anova() tests a hypothesis comparing two models.
+For instance, row 2 compares  (Model 1) and  (Model 2) in the output. 
+
+Except for row 2 with p-value 0.1663 also, f test is very low, 
+other rows have significant p values. So the best model we have among 
+this set is Model1 (model_ols_step_both_p). "I might not correct but still learning.
+
+```{r}
+
+library(broom)
+
+################################################################################
+##        Glance accepts a model object and returns a tibble::tibble()        ##
+##    with exactly one row of model summaries. The summaries are typically    ##
+##    goodness of fit measures, p-values for hypothesis tests on residuals,   ##
+##  or model convergence information. Glance never returns information from   ##
+##                the original call to the modeling function.                 ##
+################################################################################
+glance(model_ols_step_both_p)  # for model model_ols_step_both_p
+glance(model_ols_step_forward_p) # for model model_ols_step_forward_p
+glance(model_ols_step_backward_p) # for model model_ols_step_backward_p
+
+```
+
+![](Statistic-and-Criterion.jpg)
+
+
+## Prefer models with lower AICs or BICs
+
+model_ols_step_both_p AIC = 537.6038 & BIC = 572.5788	 WINNER.
+
+model_ols_step_forward_p AIC =537.6357 & BIC =  576.4968
+
+model_ols_step_backward_p AIC =  588.63 & BIC = 615.8327	
+
+
+
+
+
+overall model_ols_step_both_p is supper close to model_ols_step_forward_p model because 
+model_ols_step_both_p is winner in lower AICs or BICs & RMSE  (slightly)  ,   we have 
+model_ols_step_both_p one appear  to yield a “better” final model.
+
+
+
+
+
+
+\newpage
+# Ref:
+
+1. In-class Dr. Kourosh Ravvaz content, UWM, Spring 2022.
+
+2. <https://r4ds.had.co.nz/factors.html#:~:text=In%20R%2C%20factors%20are%20used,to%20work%20with%20than%20characters.>
+
+3. <https://www.youtube.com/watch?v=xkRBfy8_2MU>
+
+4.  <https://r-coder.com/set-seed-r/>
+
+5.  <https://rmd4sci.njtierney.com/math.html>
+
+6.  <https://rpruim.github.io/s341/S19/from-class/MathinRmd.html>
+
+7. <https://www.statology.org/interpret-glm-output-in-r/>
+
+7.  <https://bookdown.org/yihui/rmarkdown-cookbook/update-date.html>
+
+8. <https://stats.oarc.ucla.edu/r/dae/logit-regression/>
+
+9. <https://r-graph-gallery.com/boxplot.html>
+
+10. <https://www.rdocumentation.org/packages/ggplot2/versions/1.0.1/topics/geom_bar>
+
+11. <https://www.jmlr.org/papers/volume20/17-334/17-334.pdf>
+
+12. <https://www.rdocumentation.org/packages/olsrr/versions/0.5.3>
+
+13. <https://cran.r-project.org/web/packages/olsrr/vignettes/variable_selection.html>
+
+14. <https://www.statisticshowto.com/probability-and-statistics/regression-analysis/rmse-root-mean-square-error/>
+
+15. <https://www.machinelearningplus.com/machine-learning/complete-introduction-linear-regression-r/>
+
+16. <https://www.machinelearningplus.com/machine-learning/complete-introduction-linear-regression-r/>
+
+17. <https://www.geeksforgeeks.org/applying-a-function-over-an-object-in-r-programming-sapply-function/>
+
+18. <https://www.statology.org/stepwise-regression-r/>
+
+19. <https://r-statistics.co/Model-Selection-in-R.html>
+
+The best way to predict the future is to create it." Abraham Lincoln.
+
+End of Document.
