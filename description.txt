@@ -1,7 +1,10 @@
 Data Integrity
-- Columns Info
-- Conflicting Labels
-- Data Duplicates
+- Columns Info: Each column's role and logical type should be returned.
+- Conflicting Labels: The check looks for samples that are identical but have different labels. 
+This can happen due to  mislabeled data or because the data collected appears to lack the features required to separate the labels. 
+If the data is incorrectly labelled, it can confuse the model and cause it to perform poorly.
+goal is "Identify samples with identical feature values but distinct label labels."
+- Data Duplicates: 
 - Feature Feature Correlation
 - Feature Label Correlation
 - Identifier Label Correlation
