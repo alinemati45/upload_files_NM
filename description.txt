@@ -4,6 +4,3 @@ Depending on the phase of NM project and desired validation techniques are requi
 
 - Labeled training data for the model
 
-- Test data (to which the model has not been exposed)
-
-A supported model that you would like to validate, such as scikit-learn, XGBoost, or PyTorch.
