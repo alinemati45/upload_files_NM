@@ -1,6 +1,15 @@
-Depending on the phase of NM project and desired validation techniques are required to apply, you will need a subset of the subsequent:
-
-- Raw data (string processing, etc.) with labels.
-
-- Labeled training data for the model
-
+Data Integrity
+- Columns Info
+- Conflicting Labels
+- Data Duplicates
+- Feature Feature Correlation
+- Feature Label Correlation
+- Identifier Label Correlation
+- Is Single Value
+- Mixed Data Types
+- Mixed Nulls
+- Outlier Sample Detection
+- Special Characters
+- String Length Out Of Bounds
+- String Mismatch
+-
