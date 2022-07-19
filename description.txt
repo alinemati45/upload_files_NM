@@ -1,11 +1,34 @@
 Data Integrity
-- Columns Info: Each column's role and logical type should be returned.
-- Conflicting Labels: The check looks for samples that are identical but have different labels. 
+- Columns Info: 
+    Goal: "Each column's role and logical type should be returned."
+- Conflicting Labels: 
+The check looks for samples that are identical but have different labels. 
 This can happen due to  mislabeled data or because the data collected appears to lack the features required to separate the labels. 
 If the data is incorrectly labelled, it can confuse the model and cause it to perform poorly.
-goal is "Identify samples with identical feature values but distinct label labels."
+    Goal: "Identify samples with identical feature values but distinct label labels."
 - Data Duplicates: 
-- Feature Feature Correlation
+The Data Duplicates check identifies repeated occurrences of identical samples inside the Dataset. 
+Duplicate samples enhance the weight given to those samples by the model. 
+If these duplicates are present intentionally (e.g., as a result of intentional oversampling, or because of the nature of the dataset, 
+it has identical-looking samples), this may be acceptable; however, if this is an unexpected issue, it may indicate a problem in the data pipeline 
+that needs to be addressed.
+    Goal: "Checks for duplicate samples in the dataset."
+- Feature Feature Correlation:
+This check computes the pairwise correlations between the features, potentially identifying strongly correlated pairs of characteristics.
+
+How are Correlations Determined?
+This check employs two types of features: category and numerical, and calculates the correlation using a different approach for each combination of feature types:
+
+1- numerical-numerical: Pearson’s correlation coefficient
+https://en.wikipedia.org/wiki/Pearson_correlation_coefficient
+
+2- numerical-categorical: Correlation ratio
+https://en.wikipedia.org/wiki/Correlation_ratio
+
+3- categorical-categorical: Symmetric Theil’s U
+https://en.wikipedia.org/wiki/Uncertainty_coefficient
+
+Goal: Examines and Checks for pairwise correlation between the features..
 - Feature Label Correlation
 - Identifier Label Correlation
 - Is Single Value
