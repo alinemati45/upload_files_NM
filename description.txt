@@ -16,7 +16,7 @@ that needs to be addressed.
 - Feature Feature Correlation:
 This check computes the pairwise correlations between the features, potentially identifying strongly correlated pairs of characteristics.
 
-How are Correlations Determined?
+**How are Correlations Determined?**
 This check employs two types of features: category and numerical, and calculates the correlation using a different approach for each combination of feature types:
 
 1- numerical-numerical: Pearson’s correlation coefficient
@@ -30,12 +30,61 @@ https://en.wikipedia.org/wiki/Uncertainty_coefficient
 
 Goal: Examines and Checks for pairwise correlation between the features..
 - Feature Label Correlation
+Goal: Check if identifiers (Index/Date) can be used to predict the label.
+
 - Identifier Label Correlation
-- Is Single Value
-- Mixed Data Types
-- Mixed Nulls
-- Outlier Sample Detection
+This check calculates the Predictive Power Score (PPS), which measures the ability of a unique identifier (index or datetime column) to predict the label.
+
+Even if the identifier column does not directly enter the model, collecting the data differently for different labels could indirectly influence the data and suggest an issue in the data collection pipeline.
+
+How is the Predictive Power Score (PPS) calculated?
+The features’ predictive score results in a numeric score between 0 (feature has no predictive power) and 1 (feature can fully predict the label alone).
+
+The process of calculating the PPS is the following:
+
+1- Extract from the data only the label and the feature being tested
+
+2- Drop samples with missing values
+
+3- Keep 5000 (this is configurable parameter) samples from the data
+
+4- Preprocess categorical columns. For the label using sklearn.LabelEncoder
+and for the feature using sklearn.OneHotEncoder
+
+5- Partition the data with 4-fold cross-validation
+
+6- Train decision tree
+
+7- Compare the trained model’s performance with naive model’s performance 
+
+Goal: "Check if identifiers (Index/Date) can be used to predict the label."
+
+- Is Single Value:
+Goal: "Determine whether there are columns with a single unique value across all rows."
+- Mixed Data Types:
+What are mixed types of data?
+When a column has both string values and numeric values (either as numeric types or as strings like "42.90"), it is said to contain mixed data types. This may indicate a problem in the data gathering pipeline or signal a training issue with the model.
+
+This check looks for columns containing a combination of string and numeric values and returns them along with their respective ratios.
+Goal: "Detect columns which contain a mix of numerical and string values."
+
+- Mixed Nulls: 
+Goal: "Search for various types of null values, including string representations of null."
+
+
+- Outlier Sample Detection:
+Using the LoOP algorithm, Outlier Sample Detection looks for outlier samples (across all features). The LoOP algorithm is a robust method for identifying outliers across many variables in a dataset by comparing the density of a sample's area to the densities of its nearest neighbors' areas (see link for further details).
+
+https://www.dbs.ifi.lmu.de/Publikationen/Papers/LoOP1649.pdf
+Goal: "Detects outliers in a dataset using the LoOP algorithm."
+
 - Special Characters
+
+Goal: "Search in column[s] for values that contains only special characters."
+
 - String Length Out Of Bounds
-- String Mismatch
--
+Goal: "Find strings that are significantly longer or shorter than the "typical" string lengths." 
+- String Mismatch:
+String Mismatch operates on a single dataset and examines each string column for mismatches. Finding discrepancies in strings is useful for detecting data issues. For instance, if your data is gathered from several sources, it may contain identical values but differing presentation, such as a leading uppercase. In this situation, the model's ability to learn may be hampered, as it will perceive categories that should be identical as distinct.
+Goal: "Detect different string category variants (such as "mislabeled" vs "mislabeled") in a categorical column."
+ 
